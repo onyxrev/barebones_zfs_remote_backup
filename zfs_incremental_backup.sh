@@ -65,10 +65,12 @@ is_fresh_backup_required(){
         echo "Number of incremental backups is greater than the allowed $backups_before_fresh_sync."
         return 1;
     fi
+
+    return 0;
 }
 
 is_fresh_backup_required
-if [[ $==1 ]]; then
+if [[ $ -eq 1 ]]; then
     echo "Sending fresh snapshot $latest_snapshot."
     send_snapshot $latest_snapshot "$latest_snapshot.zfs.gz.gpg"
 else
