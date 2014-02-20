@@ -49,28 +49,27 @@ echo "...found $incremental_backup_count existing incremental backups."
 is_fresh_backup_required(){
     if [[ $incremental_backup_count -eq 0 ]]; then
         echo "No backup sets on remote system."
-        return 1;
+        echo 1;
     fi
 
     if [[ -z "$last_backup_file" ]]; then
         delete_remote_snapshots
 
         echo "No documented existing backups on local system."
-        return 1;
+        echo 1;
     fi
 
     if [[  $incremental_backup_count -ge $backups_before_fresh_sync ]]; then
         delete_remote_snapshots
 
         echo "Number of incremental backups is greater than the allowed $backups_before_fresh_sync."
-        return 1;
+        echo 1;
     fi
 
-    return 0;
+    echo 0;
 }
 
-is_fresh_backup_required
-if [[ $ -eq 1 ]]; then
+if [[ $(is_fresh_backup_required) -eq 1 ]]; then
     echo "Sending fresh snapshot $latest_snapshot."
     send_snapshot $latest_snapshot "$latest_snapshot.zfs.gz.gpg"
 else
