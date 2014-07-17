@@ -26,11 +26,11 @@ send_snapshot(){
     target_snapshot_and_method=$1
     destination_filename=$2
 
-    zfs send $zfs_send_extra_flags -R $target_snapshot_and_method | gzip -$gzip_level | gpg --encrypt --sign --recipient "$gpg_keyname" | ssh $destination_user@$destination_server "cat > $destination_backup_directory/$destination_filename"
+    zfs send $zfs_send_extra_flags -R $target_snapshot_and_method | gzip -$gzip_level | gpg --encrypt --sign --recipient "$gpg_keyname" | ssh -i $ssh_private_key $destination_user@$destination_server "cat > $destination_backup_directory/$destination_filename"
 }
 
 delete_remote_snapshots(){
-    ssh $destination_user@$destination_server "rm -r $destination_backup_directory/$pool@$snapshot_prefix*"
+    ssh -i $ssh_private_key $destination_user@$destination_server "rm -r $destination_backup_directory/$pool@$snapshot_prefix*"
 }
 
 import_keys
@@ -42,7 +42,7 @@ if [[ ( -e $last_backup_file ) && ( -s $last_backup_file ) ]]; then
 fi
 
 echo "Counting existing incremental backups..."
-incremental_backup_count=`ssh $destination_user@$destination_server ls -al $destination_backup_directory | grep $pool | wc -l`
+incremental_backup_count=`ssh -i $ssh_private_key $destination_user@$destination_server ls -al $destination_backup_directory | grep $pool | wc -l`
 
 echo "...found $incremental_backup_count existing incremental backups."
 
