@@ -2,7 +2,6 @@
 pool="zones"
 snapshot_prefix="daily"
 backups_before_fresh_sync=14
-last_backup_file="/opt/local/remote_backups/last_backup"
 
 ssh_private_key="/opt/cfg/global/root/.ssh/id_rsa"
 gpg_keyname="Some GPG Key Name"
@@ -15,10 +14,10 @@ destination_server="backups.yourdomain.com"
 destination_backup_directory="/home/backup"
 
 import_keys(){
-    echo "Adding private ssh key just in case."
+    echo "Adding private ssh key $ssh_private_key just in case."
     ssh-add $ssh_private_key
 
-    echo "Adding private gpg key just in case."
+    echo "Adding private gpg key $gpg_private_key just in case."
     gpg --import $gpg_private_key
 }
 
@@ -26,7 +25,9 @@ send_snapshot(){
     target_snapshot_and_method=$1
     destination_filename=$2
 
-    zfs send $zfs_send_extra_flags -R $target_snapshot_and_method | gzip -$gzip_level | gpg --encrypt --sign --recipient "$gpg_keyname" | ssh -i $ssh_private_key $destination_user@$destination_server "cat > $destination_backup_directory/$destination_filename"
+    echo $destination_filename
+
+    zfs send $zfs_send_extra_flags -R $target_snapshot_and_method | gzip -$gzip_level | gpg --encrypt --sign --trust-model always --recipient "$gpg_keyname" | ssh -i $ssh_private_key $destination_user@$destination_server "cat > $destination_backup_directory/$destination_filename"
 }
 
 delete_remote_snapshots(){
@@ -37,9 +38,8 @@ import_keys
 
 latest_snapshot=`zfs list -t snapshot -H -o name | sort | grep "$pool@$snapshot_prefix" | tail -1`
 
-if [[ ( -e $last_backup_file ) && ( -s $last_backup_file ) ]]; then
-    last_backup=`cat $last_backup_file`
-fi
+# this is definitely a bit ghetto but I don't have awesome sed regexp skills
+last_backup=`ssh -i $ssh_private_key $destination_user@$destination_server "ls -al | grep --regexp '$pool' | tail -n 1 | sed -e 's/.* $pool/$pool/' | sed -e 's/.*-....-..-..-//' | sed -e 's/.zfs.gz.gpg//'"`
 
 echo "Counting existing incremental backups..."
 incremental_backup_count=`ssh -i $ssh_private_key $destination_user@$destination_server ls -al $destination_backup_directory | grep $pool | wc -l`
@@ -48,13 +48,6 @@ echo "...found $incremental_backup_count existing incremental backups."
 
 is_fresh_backup_required(){
     if [[ $incremental_backup_count -eq 0 ]]; then
-        echo 1
-        return
-    fi
-
-    if [[ -z "$last_backup_file" ]]; then
-        delete_remote_snapshots
-
         echo 1
         return
     fi
@@ -77,6 +70,3 @@ else
     echo "Sending incremental backup $incremental_filename."
     send_snapshot "-i $last_backup $latest_snapshot" $incremental_filename
 fi
-
-echo "Remembering latest backup snapshot is $latest_snapshot."
-echo "$latest_snapshot" > $last_backup_file
