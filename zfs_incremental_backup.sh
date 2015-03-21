@@ -39,7 +39,7 @@ import_keys
 latest_snapshot=`zfs list -t snapshot -H -o name | sort | grep "$pool@$snapshot_prefix" | tail -1`
 
 # this is definitely a bit ghetto but I don't have awesome sed regexp skills
-last_backup=`ssh -i $ssh_private_key $destination_user@$destination_server "ls -al | grep --regexp '$pool' | tail -n 1 | sed -e 's/.* $pool/$pool/' | sed -e 's/.*-....-..-..-//' | sed -e 's/.zfs.gz.gpg//'"`
+last_backup=`ssh -i $ssh_private_key $destination_user@$destination_server "ls -altr | grep --regexp '$pool' | tail -n 1 | sed -e 's/.* $pool/$pool/' | sed -e 's/.*-....-..-..-//' | sed -e 's/.zfs.gz.gpg//'"`
 
 echo "Counting existing incremental backups..."
 incremental_backup_count=`ssh -i $ssh_private_key $destination_user@$destination_server ls -al $destination_backup_directory | grep $pool | wc -l`
